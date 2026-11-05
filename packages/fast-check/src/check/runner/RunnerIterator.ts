@@ -1,0 +1,75 @@
+import type { Value } from '../arbitrary/definition/Value.js';
+import { PreconditionFailure } from '../precondition/PreconditionFailure.js';
+import type { PropertyFailure } from '../property/types/PropertyFailure.js';
+import type { VerbosityLevel } from './configuration/VerbosityLevel.js';
+import { RunExecution } from './reporter/RunExecution.js';
+
+/**
+ * Responsible for the iteration logic
+ *
+ * Workflow:
+ * 1- Call to `next` gives back the value to test
+ * 2- Call to `handleResult` takes into account the execution status
+ * 3- Back to 1
+ */
+export class RunnerIterator<Ts> implements IterableIterator<Ts> {
+  runExecution: RunExecution<Ts>;
+  private currentIdx: number;
+  private currentValue: Value<Ts> | undefined;
+  private nextValues: IterableIterator<Value<Ts>>;
+  constructor(
+    readonly sourceValues: IteratorObject<Value<Ts>, unknown, unknown>,
+    readonly shrink: (value: Value<Ts>) => IterableIterator<Value<Ts>>,
+    verbose: VerbosityLevel,
+    readonly maxSkips: number,
+    readonly maxInitialIterations: number,
+  ) {
+    this.runExecution = new RunExecution<Ts>(verbose, maxSkips);
+    this.currentIdx = -1;
+    this.nextValues = sourceValues;
+  }
+  [Symbol.iterator](): IterableIterator<Ts> {
+    return this;
+  }
+  next(): IteratorResult<Ts> {
+    if (
+      this.runExecution.interrupted ||
+      (this.nextValues === this.sourceValues && this.runExecution.numSuccesses >= this.maxInitialIterations)
+    ) {
+      return { done: true, value: undefined };
+    }
+    const nextValue = this.nextValues.next();
+    if (nextValue.done) {
+      return { done: true, value: undefined };
+    }
+    this.currentValue = nextValue.value;
+    ++this.currentIdx;
+    return { done: false, value: nextValue.value.value_ };
+  }
+  handleResult(result: PreconditionFailure | PropertyFailure | null): void {
+    // WARNING: This function has to be called after a call to next
+    //          Otherwise it will not be able to execute with the right currentShrinkable (or crash)
+    // As a consequence: currentShrinkable is always defined in the code below
+    if (result !== null && typeof result === 'object' && !PreconditionFailure.isFailure(result)) {
+      // failed run
+      // oxlint-disable-next-line typescript/no-non-null-assertion
+      this.runExecution.fail(this.currentValue!.value_, this.currentIdx, result);
+      this.currentIdx = -1;
+      // oxlint-disable-next-line typescript/no-non-null-assertion
+      this.nextValues = this.shrink(this.currentValue!);
+    } else if (result !== null) {
+      if (!result.interruptExecution) {
+        // skipped run
+        // oxlint-disable-next-line typescript/no-non-null-assertion
+        this.runExecution.skip(this.currentValue!.value_);
+      } else {
+        // interrupt signal
+        this.runExecution.interrupt();
+      }
+    } else {
+      // successful run
+      // oxlint-disable-next-line typescript/no-non-null-assertion
+      this.runExecution.success(this.currentValue!.value_);
+    }
+  }
+}

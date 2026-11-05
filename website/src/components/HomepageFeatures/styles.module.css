@@ -1,0 +1,34 @@
+.features {
+  display: grid;
+  padding: 2rem 0;
+  gap: 2rem;
+  width: 100%;
+  grid-template-columns: 2fr 1fr;
+}
+
+.allFeatureCards {
+  display: grid;
+  grid-template-columns: 100%;
+  gap: 3em;
+}
+
+.featureCard {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+@media screen and (max-width: 996px) {
+  .features {
+    grid-template-columns: 100%;
+  }
+}
+
+.featureSvg {
+  fill: var(--fc-banner-background-color);
+}
+
+.featureName {
+  font-size: 1.3em;
+  font-weight: bold;
+}

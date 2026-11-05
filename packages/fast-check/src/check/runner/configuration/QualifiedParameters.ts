@@ -1,0 +1,130 @@
+import type { Parameters } from './Parameters.js';
+import { VerbosityLevel } from './VerbosityLevel.js';
+import { xorshift128plus } from 'pure-rand/generator/xorshift128plus';
+import { adaptRandomGenerator } from '../../../random/generator/RandomGenerator.js';
+
+import type { RandomGenerator, RandomGeneratorInternal } from '../../../random/generator/RandomGenerator.js';
+import type { Plugin } from '../../plugin/Plugin.js';
+
+// This helper MUST capture the following globals to avoid test runners to mock our internals and defeat us
+const safeDateNow = Date.now;
+
+export type QualifiedRandomGenerator = RandomGeneratorInternal;
+
+/**
+ * Configuration extracted from incoming Parameters
+ *
+ * It handles and set the default settings that will be used by runners.
+ */
+export class QualifiedParameters<T> {
+  seed: number;
+  randomType: (seed: number) => QualifiedRandomGenerator;
+  numRuns: number;
+  maxSkipsPerRun: number;
+  path: string;
+  logger: (v: string) => void;
+  verbose: VerbosityLevel;
+  examples: T[];
+  endOnFailure: boolean;
+  noDefaultPlugins: boolean;
+  noGlobalPlugins: boolean;
+  plugins: Plugin<T>[];
+
+  constructor(op?: Parameters<T>) {
+    const p = op || {};
+    this.seed = readSeed(p);
+    this.randomType = readRandomType(p);
+    this.numRuns = readNumRuns(p);
+    this.verbose = readVerbose(p);
+    this.maxSkipsPerRun = p.maxSkipsPerRun !== undefined ? p.maxSkipsPerRun : 100;
+    this.logger =
+      p.logger !== undefined
+        ? p.logger
+        : (v: string) => {
+            console.log(v);
+          };
+    this.path = p.path !== undefined ? p.path : '';
+    this.examples = p.examples !== undefined ? p.examples : [];
+    this.endOnFailure = p.endOnFailure === true;
+    this.noDefaultPlugins = p.noDefaultPlugins === true;
+    this.noGlobalPlugins = p.noGlobalPlugins === true;
+    this.plugins = p.plugins !== undefined ? p.plugins : [];
+  }
+
+  toParameters(): Parameters<T> {
+    const parameters: { [K in keyof Required<Parameters<T>>]: Parameters<T>[K] } = {
+      seed: this.seed,
+      randomType: this.randomType,
+      numRuns: this.numRuns,
+      maxSkipsPerRun: this.maxSkipsPerRun,
+      path: this.path,
+      logger: this.logger,
+      verbose: this.verbose,
+      examples: this.examples,
+      endOnFailure: this.endOnFailure,
+      noDefaultPlugins: this.noDefaultPlugins,
+      noGlobalPlugins: this.noGlobalPlugins,
+      plugins: this.plugins,
+    };
+    return parameters;
+  }
+}
+
+function createQualifiedRandomGenerator(
+  random: (seed: number) => RandomGenerator,
+): (seed: number) => QualifiedRandomGenerator {
+  return (seed) => {
+    const rng = random(seed);
+    return adaptRandomGenerator(rng);
+  };
+}
+
+function readSeed<T>(p: Parameters<T>): number {
+  // No seed specified
+  if (p.seed === undefined) return safeDateNow() ^ (Math.random() * 0x100000000);
+
+  // Seed is a 32 bits signed integer
+  const seed32 = p.seed | 0;
+  if (p.seed === seed32) return seed32;
+
+  // Seed is either a double or an integer outside the authorized 32 bits
+  const gap = p.seed - seed32;
+  return seed32 ^ (gap * 0x100000000);
+}
+
+function readRandomType<T>(p: Parameters<T>): (seed: number) => QualifiedRandomGenerator {
+  if (p.randomType === undefined) return xorshift128plus as (seed: number) => QualifiedRandomGenerator;
+  const mrng = p.randomType(0);
+  if ('min' in mrng && mrng.min !== -0x80000000) {
+    throw new Error(`Invalid random number generator: min must equal -0x80000000, got ${String(mrng.min)}`);
+  }
+  if ('max' in mrng && mrng.max !== 0x7fffffff) {
+    throw new Error(`Invalid random number generator: max must equal 0x7fffffff, got ${String(mrng.max)}`);
+  }
+  if (mrng === adaptRandomGenerator(mrng)) {
+    return p.randomType as (seed: number) => QualifiedRandomGenerator;
+  }
+  return createQualifiedRandomGenerator(p.randomType);
+}
+
+function readNumRuns<T>(p: Parameters<T>): number {
+  const defaultValue = 100;
+  if (p.numRuns !== undefined) return p.numRuns;
+  return defaultValue;
+}
+
+function readVerbose<T>(p: Parameters<T>): VerbosityLevel {
+  if (p.verbose === undefined) return VerbosityLevel.None;
+  if (typeof p.verbose === 'boolean') {
+    return p.verbose === true ? VerbosityLevel.Verbose : VerbosityLevel.None;
+  }
+  return p.verbose;
+}
+
+/**
+ * Extract a runner configuration from Parameters
+ * @param p - Incoming Parameters
+ */
+export function read<T>(op?: Parameters<T>): QualifiedParameters<T> {
+  return new QualifiedParameters(op);
+}

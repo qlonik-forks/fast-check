@@ -1,18 +1,18 @@
-bundle/package/
-coverage/
-dist/
-docs/
-example/output/
-lib/
-lib-*/
 node_modules/
-.nyc_output/
-.vscode/
-*.generated.ts
-*.generated.spec.ts
+
+# Various generated files
+packages/fast-check/docs/
+website/docs/api/
+**/coverage/
+**/dist/
+**/lib/
+**/lib-*/
+**/.test-artifacts/
 *.tgz
 deopt.out
 v8.log
 v8.out
-test/esm/**/out.txt
+benchmark.json
+
+# IDE related files
 .idea

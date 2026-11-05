@@ -1,0 +1,47 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json",
+  "compiler": {
+    "overrideTsconfig": {
+      "extends": "../../tsconfig.common.json",
+      "compilerOptions": {
+        "types": ["node"]
+      },
+      "include": ["src/"],
+      "exclude": ["src/**/*.spec.ts", "src/**/__test-helpers__/"]
+    }
+  },
+  "tsdocMetadata": {
+    "enabled": false
+  },
+  "mainEntryPointFilePath": "lib/fast-check.d.ts",
+  "dtsRollup": {
+    "enabled": false
+  },
+  "docModel": {
+    "enabled": true,
+    "apiJsonFilePath": "docs/fast-check.api.json"
+  },
+  "apiReport": {
+    "enabled": false
+  },
+  "messages": {
+    "compilerMessageReporting": {
+      "default": {
+        "logLevel": "error"
+      }
+    },
+    "extractorMessageReporting": {
+      "default": {
+        "logLevel": "error"
+      },
+      "ae-unresolved-link": {
+        "logLevel": "warning"
+      }
+    },
+    "tsdocMessageReporting": {
+      "default": {
+        "logLevel": "error"
+      }
+    }
+  }
+}

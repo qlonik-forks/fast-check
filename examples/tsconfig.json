@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.common.json",
+  "compilerOptions": {
+    "isolatedDeclarations": false,
+    "jsx": "react",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "types": ["node"]
+  }
+}

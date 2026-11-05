@@ -1,0 +1,24 @@
+# Dependencies
+/node_modules
+
+# Production
+/build
+
+# Generated files
+.docusaurus
+.cache-loader
+generated-tests
+src/components/HomepageContributors/all-contributors.json
+static/img/sponsors.svg
+static/img/_
+static/img/**/*.gif
+static/img/**/*.png
+
+# Misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*

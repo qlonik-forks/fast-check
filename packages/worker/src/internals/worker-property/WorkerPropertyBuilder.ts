@@ -1,0 +1,33 @@
+import type { LegacyPropertyWithHooks, PropertyArbitraries } from '../SharedTypes.js';
+import type { Payload } from '../worker-pool/IWorkerPool.js';
+
+import * as fc from 'fast-check';
+import type { PredicateExecutionContext } from 'fast-check';
+import { WorkerPropertyFromWorker } from './WorkerPropertyFromWorker.js';
+
+const property = (fc as { asyncProperty?: typeof fc.property }).asyncProperty ?? fc.property;
+
+/**
+ * Property tailored for usage with workers
+ * it produces the payload to be sent to the workers
+ */
+type WorkerProperty<Ts> = LegacyPropertyWithHooks<Ts> & { getPayload: (_inputs: Ts) => Payload<Ts> };
+
+/**
+ * Build an async property tailored for workers
+ * @param arbitraries - Arbitraries supposed to generate our values
+ * @param predicate - Predicate for the property
+ * @param generateValuesInMainThread - When "true" the value gets generated inside the property itself, otherwise responsability goes to the worker
+ */
+export function buildWorkerProperty<Ts extends [unknown, ...unknown[]]>(
+  arbitraries: PropertyArbitraries<Ts>,
+  predicate: NoInfer<(...args: [...Ts, PredicateExecutionContext]) => Promise<boolean | void>>,
+  generateValuesInMainThread: boolean,
+): WorkerProperty<Ts> {
+  if (!generateValuesInMainThread) {
+    return Object.assign(property<Ts>(...arbitraries, predicate) as LegacyPropertyWithHooks<Ts>, {
+      getPayload: (inputs: Ts): Payload<Ts> => ({ source: 'main', value: inputs }),
+    });
+  }
+  return new WorkerPropertyFromWorker(arbitraries, predicate);
+}

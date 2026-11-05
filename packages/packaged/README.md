@@ -1,0 +1,67 @@
+# `@fast-check/packaged`
+
+Utility package removing any files that will not be part of the final bundle published to npm registry
+
+<a href="https://npmx.dev/package/@fast-check/packaged"><img src="https://badge.fury.io/js/@fast-check%2Fpackaged.svg" alt="npm version" /></a>
+<a href="https://npmx.dev/package/@fast-check/packaged"><img src="https://img.shields.io/npm/dm/@fast-check%2Fpackaged" alt="monthly downloads" /></a>
+<a href="https://github.com/dubzzz/fast-check/blob/main/packages/packaged/LICENSE"><img src="https://img.shields.io/npm/l/@fast-check%2Fpackaged.svg" alt="License" /></a>
+
+---
+
+## Why?
+
+When publishing packages to npm registry, it is quite easy to forget about some files. It also happens many times that we want somehow to check the packaged bundle in some of our tests but totally forget that some files have not been added to the bundle and so that the final user will actually never be able to run this code.
+
+This package mostly try to prevent this issue. It can easily be used in monorepos to emulate the bundled package when used against other packages of the monorepo to make sure others do not depend on internals or non published stuff.
+
+## Easy to use
+
+Run the following command at the root of your package to drop any file that will not make it in the final bundle published to npm.
+
+```bash
+# With npm
+npx -p @fast-check/packaged packaged
+# With pnpm
+pnpm --package=@fast-check/packaged dlx packaged
+# With yarn
+yarn dlx -p @fast-check/packaged packaged
+```
+
+⚠️ You may want to try with `--dry-run` flag first to give it a try.
+
+It also comes with some extra flags:
+
+- `--dry-run`: do not drop any file or directory from the file system and only print what would have been removed
+- `--keep <name>`: keep a root-level file or directory matching the exact name (not a glob pattern, can be specified multiple times, e.g. `--keep node_modules --keep src`)
+
+## Simple API
+
+```js
+import { computePublishedFiles, removeNonPublishedFiles } from '@fast-check/packaged';
+
+// Compute the list of all files that would be part of the bundle
+// if we attempted to publish the packge defined at .
+const publishedFilesRoot = await computePublishedFiles('.');
+
+// Compute the list of all files that would be part of the bundle
+// if we attempted to publish the packge defined at ./sub-directory
+const publishedFilesSubDirectory = await computePublishedFiles('./sub-directory');
+
+// Run the deletion of unwanted files
+const { kept, removed } = await removeNonPublishedFiles('.', { dryRun: false, keep: [] });
+// kept and removed are arrays of strings
+// they may contain files or directories
+```
+
+## Minimal requirements
+
+| @fast-check/packaged | node                   |
+| -------------------- | ---------------------- |
+| **0.6.x**            | ≥20.19.0<sup>(1)</sup> |
+
+<details>
+<summary>More details...</summary>
+
+1. Requires support for `require(esm)`.
+
+</details>

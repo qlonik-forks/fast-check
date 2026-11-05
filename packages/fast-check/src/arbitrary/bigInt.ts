@@ -1,0 +1,92 @@
+import type { Arbitrary } from '../check/arbitrary/definition/Arbitrary.js';
+import { BigIntArbitrary } from './_internals/BigIntArbitrary.js';
+
+/**
+ * Constraints to be applied on {@link bigInt}
+ * @remarks Since 2.6.0
+ * @public
+ */
+export interface BigIntConstraints {
+  /**
+   * Lower bound for the generated bigints (eg.: -5n, 0n, BigInt(Number.MIN_SAFE_INTEGER))
+   * @remarks Since 2.6.0
+   */
+  min?: bigint;
+  /**
+   * Upper bound for the generated bigints (eg.: -2n, 2147483647n, BigInt(Number.MAX_SAFE_INTEGER))
+   * @remarks Since 2.6.0
+   */
+  max?: bigint;
+}
+
+/** Build fully set BigIntConstraints from a partial data */
+function buildCompleteBigIntConstraints(constraints: BigIntConstraints): Required<BigIntConstraints> {
+  const DefaultMin = -1n << 255n;
+  const DefaultMax = (1n << 255n) - 1n;
+
+  const min = constraints.min;
+  const max = constraints.max;
+  return {
+    min: min !== undefined ? min : DefaultMin - (max !== undefined && max < 0n ? max * max : 0n),
+    max: max !== undefined ? max : DefaultMax + (min !== undefined && min > 0n ? min * min : 0n),
+  };
+}
+
+/** Extract constraints from args received by bigint */
+function extractBigIntConstraints(args: [] | [bigint, bigint] | [BigIntConstraints]): BigIntConstraints {
+  if (args[0] === undefined) {
+    // bigInt()
+    return {};
+  } // args.length > 0
+
+  if (args[1] === undefined) {
+    // bigInt(constraints)
+    const constraints = args[0] as BigIntConstraints;
+    return constraints;
+  } // args.length > 1
+
+  return { min: args[0] as bigint, max: args[1] as bigint }; // bigInt(min, max)
+}
+
+/**
+ * For bigint
+ * @remarks Since 1.9.0
+ * @public
+ */
+function bigInt(): Arbitrary<bigint>;
+/**
+ * For bigint between min (included) and max (included)
+ *
+ * @param min - Lower bound for the generated bigints (eg.: -5n, 0n, BigInt(Number.MIN_SAFE_INTEGER))
+ * @param max - Upper bound for the generated bigints (eg.: -2n, 2147483647n, BigInt(Number.MAX_SAFE_INTEGER))
+ *
+ * @remarks Since 1.9.0
+ * @public
+ */
+function bigInt(min: bigint, max: bigint): Arbitrary<bigint>;
+/**
+ * For bigint between min (included) and max (included)
+ *
+ * @param constraints - Constraints to apply when building instances
+ *
+ * @remarks Since 2.6.0
+ * @public
+ */
+function bigInt(constraints: BigIntConstraints): Arbitrary<bigint>;
+/**
+ * For bigint between min (included) and max (included)
+ *
+ * @param args - Either min/max bounds as an object or constraints to apply when building instances
+ *
+ * @remarks Since 4.3.0
+ * @public
+ */
+function bigInt(...args: [] | [bigint, bigint] | [BigIntConstraints]): Arbitrary<bigint>;
+function bigInt(...args: [] | [bigint, bigint] | [BigIntConstraints]): Arbitrary<bigint> {
+  const constraints = buildCompleteBigIntConstraints(extractBigIntConstraints(args));
+  if (constraints.min > constraints.max) {
+    throw new Error('fc.bigInt expects max to be greater than or equal to min');
+  }
+  return new BigIntArbitrary(constraints.min, constraints.max);
+}
+export { bigInt };

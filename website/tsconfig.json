@@ -1,0 +1,10 @@
+{
+  "extends": "@docusaurus/tsconfig",
+  "compilerOptions": {
+    "baseUrl": null,
+    "paths": {
+      "@site/*": ["./*"]
+    },
+    "types": ["node", "@docusaurus/module-type-aliases", "@docusaurus/theme-classic"]
+  }
+}

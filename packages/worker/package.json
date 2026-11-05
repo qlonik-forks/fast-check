@@ -1,0 +1,56 @@
+{
+  "name": "@fast-check/worker",
+  "description": "Provide built-ins to run predicates directly within dedicated workers",
+  "version": "0.6.0",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./lib/main.js"
+  },
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "rolldown -c",
+    "build-ci": "rolldown -c",
+    "test-bundle:cjs": "node test-bundle/main.cjs",
+    "test-bundle:mjs": "node test-bundle/main.mjs",
+    "test-bundle": "pnpm run test-bundle:cjs && pnpm run test-bundle:mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dubzzz/fast-check.git",
+    "directory": "packages/worker"
+  },
+  "author": "Nicolas DUBIEN <github@dubien.org>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dubzzz/fast-check/issues"
+  },
+  "homepage": "https://github.com/dubzzz/fast-check/tree/main/packages/worker#readme",
+  "dependencies": {
+    "fast-check": "^4.10.0",
+    "pure-rand": "^8.0.0"
+  },
+  "devDependencies": {
+    "@fast-check/worker": "workspace:*",
+    "@types/node": "^26.6.6",
+    "typescript": "~7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "keywords": [
+    "worker",
+    "fast-check"
+  ],
+  "funding": [
+    {
+      "type": "individual",
+      "url": "https://github.com/sponsors/dubzzz"
+    },
+    {
+      "type": "opencollective",
+      "url": "https://opencollective.com/fast-check"
+    }
+  ]
+}

@@ -1,9 +1,0 @@
-
-
-{
-    "buildCommand": "build:prod",
-    "sandboxes": ["vanilla", "/example"],
-    "node": "14"
-  }
-  
-  

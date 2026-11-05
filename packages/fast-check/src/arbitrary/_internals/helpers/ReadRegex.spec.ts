@@ -1,0 +1,89 @@
+import { describe, it, expect } from 'vitest';
+import { TokenizerBlockMode, readFrom } from './ReadRegex.js';
+
+describe('readFrom', () => {
+  it.each`
+    source                       | expected
+    ${'a'}                       | ${'a'}
+    ${'.'}                       | ${'.'}
+    ${'*'}                       | ${'*'}
+    ${'\\1'}                     | ${'\\1'}
+    ${'\\12'}                    | ${'\\12'}
+    ${'\\127'}                   | ${'\\127'}
+    ${'\\1274'}                  | ${['\\127', '\\1274']}
+    ${'\\x25'}                   | ${'\\x25'}
+    ${'\\x'}                     | ${['\\x', null]}
+    ${'\\xZ'}                    | ${['\\x', null]}
+    ${'\\x1'}                    | ${['\\x', null]}
+    ${'\\x1Z'}                   | ${['\\x', null]}
+    ${'\\u2525'}                 | ${'\\u2525'}
+    ${'\\u'}                     | ${['\\u', null]}
+    ${'\\uZ'}                    | ${['\\u', null]}
+    ${'\\u1'}                    | ${['\\u', null]}
+    ${'\\u12'}                   | ${['\\u', null]}
+    ${'\\u123'}                  | ${['\\u', null]}
+    ${'\\u123Z'}                 | ${['\\u', null]}
+    ${'\\uD83D\\uDC31'}          | ${['\\uD83D', '\\uD83D\\uDC31']}
+    ${'\\ud83d\\udc31+'}         | ${['\\ud83d', '\\ud83d\\udc31']}
+    ${'\\uD800\\uDC00'}          | ${['\\uD800', '\\uD800\\uDC00']}
+    ${'\\uDBFF\\uDFFF'}          | ${['\\uDBFF', '\\uDBFF\\uDFFF']}
+    ${'\\uD83D\\u0041'}          | ${'\\uD83D'}
+    ${'\\uDC31\\uD83D'}          | ${'\\uDC31'}
+    ${'\\uD83D\\u{dc31}'}        | ${'\\uD83D'}
+    ${'\\u{1f431}'}              | ${['\\u', '\\u{1f431}']}
+    ${'\\u{1f43}'}               | ${['\\u', '\\u{1f43}']}
+    ${'\\u{1f4}'}                | ${['\\u', '\\u{1f4}']}
+    ${'\\u{1f}'}                 | ${['\\u', '\\u{1f}']}
+    ${'\\u{1}'}                  | ${['\\u', '\\u{1}']}
+    ${'\\u{100000}'}             | ${['\\u', '\\u{100000}']}
+    ${'\\u{10ffff}'}             | ${['\\u', '\\u{10ffff}']}
+    ${'\\u{00000000000061}'}     | ${['\\u', '\\u{00000000000061}']}
+    ${'\\u{110000}'}             | ${['\\u', null]}
+    ${'\\u{}'}                   | ${['\\u', null]}
+    ${'\\u{123g}'}               | ${['\\u', null]}
+    ${'\\u{123'}                 | ${['\\u', null]}
+    ${'\\\\'}                    | ${'\\\\'}
+    ${'\\*'}                     | ${'\\*'}
+    ${'{1}'}                     | ${'{1}'}
+    ${'{1,}'}                    | ${'{1,}'}
+    ${'{1,3}'}                   | ${'{1,3}'}
+    ${'{1[2]3}'}                 | ${'{'}
+    ${'{,1}'}                    | ${'{'}
+    ${'{1, 3}'}                  | ${'{'}
+    ${'{}'}                      | ${'{'}
+    ${'[A-Za-z0-9]'}             | ${'[A-Za-z0-9]'}
+    ${'[\\u{1f431}]'}            | ${'[\\u{1f431}]'}
+    ${'[{]'}                     | ${'[{]'}
+    ${'[\\u{1f431}]'}            | ${'[\\u{1f431}]'}
+    ${'[\\]]'}                   | ${'[\\]]'}
+    ${'(abc|cde)'}               | ${'(abc|cde)'}
+    ${'(\\))'}                   | ${'(\\))'}
+    ${'([)])'}                   | ${'([)])'}
+    ${'([)\\]])'}                | ${'([)\\]])'}
+    ${'(?=a)'}                   | ${'(?=a)'}
+    ${'(?<=a)'}                  | ${'(?<=a)'}
+    ${'(?=(a+))'}                | ${'(?=(a+))'}
+    ${'(?!(a+)b\\2c)'}           | ${'(?!(a+)b\\2c)'}
+    ${'(?<=([ab]+)([bc]+))'}     | ${'(?<=([ab]+)([bc]+))'}
+    ${'\\p{a}'}                  | ${['\\p', '\\p{a}']}
+    ${'\\p{Emoji_Presentation}'} | ${['\\p', '\\p{Emoji_Presentation}']}
+    ${'\\P{Emoji_Presentation}'} | ${['\\P', '\\P{Emoji_Presentation}']}
+    ${'\\p{Emoji_Presentation'}  | ${['\\p', null]}
+    ${'\\P{Emoji_Presentation'}  | ${['\\P', null]}
+    ${'\\k<a>'}                  | ${'\\k<a>'}
+    ${'\\k<group_name>'}         | ${'\\k<group_name>'}
+    ${'\\k<group_name'}          | ${['\\k', null]}
+    ${'(?<la>a(?<lb>b)c)'}       | ${'(?<la>a(?<lb>b)c)'}
+    ${'🐱'}                      | ${['\ud83d', '🐱']}
+    ${'\\🐱'}                    | ${['\\\ud83d', '\\🐱']}
+  `('should properly extract first block of "$source"', ({ source, expected }) => {
+    const expectedNonUnicode = typeof expected === 'string' ? expected : expected[0];
+    const expectedUnicode = typeof expected === 'string' ? expected : expected[1];
+    expect(readFrom(source, 0, false, TokenizerBlockMode.Full)).toBe(expectedNonUnicode);
+    if (expectedUnicode !== null) {
+      expect(readFrom(source, 0, true, TokenizerBlockMode.Full)).toBe(expectedUnicode);
+    } else {
+      expect(() => readFrom(source, 0, true, TokenizerBlockMode.Full)).toThrowError();
+    }
+  });
+});

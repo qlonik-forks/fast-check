@@ -1,0 +1,43 @@
+function hasTestRunner(line: string) {
+  return line.match(/node_modules\/@?vitest/) || line.match(/node_modules\/chai/);
+}
+
+function sanitizeStack(initialMessage: string) {
+  const lines = initialMessage
+    .split('\n')
+    .map((line) => (line.trimStart().startsWith('at ') ? line.replace(/\\/g, '/') : line))
+    .join('\n')
+    .replace(/at [^(]*fast-check\/(packages|node_modules)(.*):\d+:\d+/g, 'at $1$2:?:?') // line for the spec file itself
+    .replace(/at (.*) \(.*fast-check\/(packages|node_modules)(.*):\d+:\d+\)/g, 'at $1 ($2$3:?:?)') // any import linked to internals of fast-check
+    // pnpm v11 stores dependencies under a global virtual store (`.../store/v<N>/links/...`) instead of `<repo>/node_modules/.pnpm/`.
+    // Re-shape unscoped (`@/<pkg>/<version>/<hash>`) and scoped (`@<scope>/<pkg>/<version>/<hash>`) store paths back into the v10
+    // `node_modules/.pnpm/<flat-name>@<version>/...` form so the snapshot stays valid across pnpm versions.
+    .replace(
+      /at (.*) \(file:\/\/[^()]+?\/store\/v\d+\/links\/@\/([^/]+)\/([^/]+)\/[a-f0-9]+\/node_modules\/([^)]*?):\d+:\d+\)/g,
+      'at $1 (node_modules/.pnpm/$2@$3/node_modules/$4:?:?)',
+    )
+    .replace(
+      /at (.*) \(file:\/\/[^()]+?\/store\/v\d+\/links\/@([^/]+)\/([^/]+)\/([^/]+)\/[a-f0-9]+\/node_modules\/([^)]*?):\d+:\d+\)/g,
+      'at $1 (node_modules/.pnpm/@$2+$3@$4/node_modules/$5:?:?)',
+    )
+    .replace(/node_modules\/\.pnpm\/([^/]*)@([^/]*)\//g, 'node_modules/.pnpm/$1@<version>/') // drop version from pnpm modules
+    .split('\n');
+  // Drop internals of test runner from the stack: internals of vitest, subject to regular changes and OS dependent
+  const firstLineWithTestRunner = lines.findIndex(hasTestRunner);
+  if (firstLineWithTestRunner !== -1) {
+    const lastLineWithTestRunner = lines.length - 1 - [...lines].reverse().findIndex(hasTestRunner);
+    lines.splice(firstLineWithTestRunner, lastLineWithTestRunner - firstLineWithTestRunner + 1);
+  }
+  return lines.filter((line) => !line.includes('node:internal')).join('\n');
+}
+
+/** Wrap a potentially throwing code within a caller that would sanitize the returned Error */
+export function asyncRunWithSanitizedStack(run: () => Promise<void>) {
+  return async (): Promise<void> => {
+    try {
+      await run();
+    } catch (err) {
+      throw new Error(sanitizeStack((err as Error).message), { cause: err });
+    }
+  };
+}

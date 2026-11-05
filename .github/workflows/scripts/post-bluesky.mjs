@@ -1,0 +1,45 @@
+// @ts-check
+import { Agent, CredentialSession, RichText } from '@atproto/api';
+
+const url = requireEnv('BLUESKY_URL');
+const identifier = requireEnv('BLUESKY_IDENTIFIER');
+const password = requireEnv('BLUESKY_APP_PASSWORD');
+const releaseUrl = requireEnv('RELEASE_URL');
+const releaseTag = requireEnv('RELEASE_TAG');
+
+const session = new CredentialSession(new URL(url));
+await session.login({ identifier, password });
+const agent = new Agent(session);
+
+const text = `🚀 New release on its way: ${formatReleaseLabel(releaseTag)}\n\nRelease notes will land shortly at: ${releaseUrl}`;
+const richText = new RichText({ text });
+await richText.detectFacets(agent);
+
+const result = await agent.post({
+  text: richText.text,
+  facets: richText.facets,
+  langs: ['en'],
+});
+console.log(`Posted to Bluesky: ${result.uri}`);
+
+// Helpers
+
+/** @param {string} name */
+function requireEnv(name) {
+  const value = process.env[name];
+  if (value === undefined || value === '') {
+    throw new Error(`Missing ${name} env var`);
+  }
+  return value;
+}
+
+/** @param {string} tag */
+function formatReleaseLabel(tag) {
+  const slashIndex = tag.indexOf('/');
+  if (slashIndex === -1) {
+    return `fast-check ${tag}`;
+  }
+  const scope = tag.slice(0, slashIndex);
+  const version = tag.slice(slashIndex + 1);
+  return `@fast-check/${scope} ${version}`;
+}

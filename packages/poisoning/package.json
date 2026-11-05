@@ -1,0 +1,53 @@
+{
+  "name": "@fast-check/poisoning",
+  "description": "Set of utilities to ease detection and revert of poisoning",
+  "version": "0.3.1",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./lib/main.js"
+  },
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "rolldown -c",
+    "build-ci": "rolldown -c",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dubzzz/fast-check.git",
+    "directory": "packages/poisoning"
+  },
+  "author": "Nicolas DUBIEN <github@dubien.org>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dubzzz/fast-check/issues"
+  },
+  "homepage": "https://github.com/dubzzz/fast-check/tree/main/packages/poisoning#readme",
+  "devDependencies": {
+    "@fast-check/poisoning": "workspace:*",
+    "@types/node": "^26.6.6",
+    "rolldown": "^1.2.16",
+    "typescript": "~7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "keywords": [
+    "poisoning",
+    "cve",
+    "prototype",
+    "detection",
+    "fast-check"
+  ],
+  "funding": [
+    {
+      "type": "individual",
+      "url": "https://github.com/sponsors/dubzzz"
+    },
+    {
+      "type": "opencollective",
+      "url": "https://opencollective.com/fast-check"
+    }
+  ]
+}

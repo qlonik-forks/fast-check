@@ -1,0 +1,123 @@
+import type { PredicateExecutionContext, Property, Random, Value } from 'fast-check';
+import type { LegacyPropertyHookFunction, LegacyPropertyWithHooks, PropertyArbitraries } from '../SharedTypes.js';
+import type { ValueState } from '../ValueFromState.js';
+import type { Payload } from '../worker-pool/IWorkerPool.js';
+
+import * as fc from 'fast-check';
+import { generateValueFromState } from '../ValueFromState.js';
+
+const property = (fc as { asyncProperty?: typeof fc.property }).asyncProperty ?? fc.property;
+
+const WorkerPropertyFromWorkerCache = new WeakMap<object, ValueState>();
+
+class WorkerPropertyFromWorkerError extends Error {
+  constructor(...args: Parameters<typeof Error>) {
+    super(...args);
+  }
+}
+
+function lazyGenerateValueFromState<Ts>(property: Property<Ts>, state: ValueState): () => Ts {
+  let value: Ts | undefined = undefined;
+  return function getValue(): Ts {
+    if (value === undefined) {
+      value = generateValueFromState(property, state);
+    }
+    return value;
+  };
+}
+
+function extractCacheKey(inputs: [unknown, ...unknown[]]): object {
+  return inputs[0] as object;
+}
+
+function buildInputsAndRegister<Ts extends [unknown, ...unknown[]]>(
+  property: Property<Ts>,
+  valueState: ValueState,
+  numArbitraries: number,
+): Ts {
+  const getValue = lazyGenerateValueFromState(property, valueState);
+  const inputs: object[] = [...Array(numArbitraries)].map((_, index) => ({
+    toString: () => fc.stringify(getValue()[index]),
+  }));
+
+  WorkerPropertyFromWorkerCache.set(extractCacheKey(inputs as [object, ...object[]]), valueState);
+
+  // WARNING: The type for inputs variable is obviously not the one the caller expects!
+  // But in the context of WorkerPropertyFromWorker, caller knows that the inputs returned by generate
+  // should not be consummed as-is and that they will be re-created on worker's side.
+  return inputs as Ts;
+}
+
+/**
+ * A WorkerProperty delegating generating the values to the Worker thread
+ * instead of running it into the main thread
+ */
+export class WorkerPropertyFromWorker<Ts extends [unknown, ...unknown[]]> implements LegacyPropertyWithHooks<Ts> {
+  private readonly numArbitraries: number;
+  private readonly internalProperty: LegacyPropertyWithHooks<Ts>;
+
+  constructor(
+    arbitraries: PropertyArbitraries<Ts>,
+    predicate: NoInfer<(...args: [...Ts, PredicateExecutionContext]) => Promise<boolean | void>>,
+  ) {
+    this.numArbitraries = arbitraries.length;
+    this.internalProperty = property<Ts>(...arbitraries, predicate) as LegacyPropertyWithHooks<Ts>;
+  }
+
+  // Required by fast-check v4 to await predicates and their lifecycle hooks.
+  isAsync(): true {
+    return true;
+  }
+
+  generate(mrng: Random, runId?: number): Value<Ts> {
+    // Extracting and cloning the state of Random before altering it
+    const rawRngState = mrng.getState();
+    if (rawRngState === undefined) {
+      throw new WorkerPropertyFromWorkerError('Cannot extract any state from the provided instance of Random');
+    }
+    const valueState = { rngState: rawRngState.slice(), runId };
+    const inputs = buildInputsAndRegister(this.internalProperty, valueState, this.numArbitraries);
+    return new fc.Value(inputs, undefined);
+  }
+
+  shrink(_value: Value<Ts>): IteratorObject<Value<Ts>> {
+    // No shrink on worker-based generations
+    return Iterator.from([]);
+  }
+
+  run(v: Ts, executionContext: PredicateExecutionContext): ReturnType<LegacyPropertyWithHooks<Ts>['run']> {
+    return this.internalProperty.run(v, executionContext);
+  }
+
+  beforeEach(hookFunction: LegacyPropertyHookFunction): LegacyPropertyWithHooks<Ts> {
+    return this.internalProperty.beforeEach(hookFunction);
+  }
+
+  afterEach(hookFunction: LegacyPropertyHookFunction): LegacyPropertyWithHooks<Ts> {
+    return this.internalProperty.afterEach(hookFunction);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async runBeforeEach(): Promise<void> {
+    if (this.internalProperty.runBeforeEach !== undefined) {
+      return this.internalProperty.runBeforeEach();
+    }
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async runAfterEach(): Promise<void> {
+    if (this.internalProperty.runAfterEach !== undefined) {
+      return this.internalProperty.runAfterEach();
+    }
+    return;
+  }
+
+  getPayload(inputs: Ts): Payload<Ts> {
+    const valueState = WorkerPropertyFromWorkerCache.get(extractCacheKey(inputs));
+    if (valueState === undefined) {
+      throw new WorkerPropertyFromWorkerError('Cannot get a relevant payload to execute this run');
+    }
+    return { source: 'worker', ...valueState };
+  }
+}

@@ -1,0 +1,129 @@
+/**
+ * @vitest-environment happy-dom
+ */
+import { describe, it, vi } from 'vitest';
+import * as fc from 'fast-check';
+import * as React from 'react';
+
+import AutocompleteField from './src/AutocompleteField.js';
+
+import { render, cleanup, fireEvent, act, getNodeText, screen } from '@testing-library/react';
+
+describe('AutocompleteField', () => {
+  it('should only show suggestions that match the current input', async () => {
+    await fc.assert(
+      fc.property(AllResultsArbitrary, QueriesArbitrary, fc.scheduler({ act }), async (allResults, queries, s) => {
+        // Arrange
+        const searchImplem = s.scheduleFunction(function search(query: string, maxResults: number) {
+          return Promise.resolve(allResults.filter((r) => r.includes(query)).slice(0, maxResults));
+        });
+
+        // Act
+        render(<AutocompleteField search={searchImplem} />);
+        const input = screen.getByRole('textbox') as HTMLElement;
+        s.scheduleSequence(buildAutocompleteEvents(input, queries));
+
+        // Assert
+        while (s.count() !== 0) {
+          await s.waitOne();
+
+          const autocompletionValue = input.attributes.getNamedItem('value')!.value;
+          const suggestions = (screen.queryAllByRole('listitem') as HTMLElement[]).map(getNodeText);
+          if (!suggestions.every((suggestion) => suggestion.includes(autocompletionValue))) {
+            throw new Error(
+              `Invalid suggestions for ${JSON.stringify(autocompletionValue)}, got: ${JSON.stringify(suggestions)}`,
+            );
+          }
+        }
+      }),
+      {
+        plugins: [
+          fc.beforeEach(async () => {
+            vi.resetAllMocks();
+            await cleanup();
+          }),
+        ],
+      },
+    );
+  });
+
+  it('should show increasingly more suggestions as queries resolve', async () => {
+    await fc.assert(
+      fc.property(AllResultsArbitrary, QueriesArbitrary, fc.scheduler({ act }), async (allResults, queries, s) => {
+        // Arrange
+        const query = queries[queries.length - 1];
+        const searchImplem = s.scheduleFunction(function search(query: string, maxResults: number) {
+          return Promise.resolve(allResults.filter((r) => r.includes(query)).slice(0, maxResults));
+        });
+
+        // Act
+        render(<AutocompleteField search={searchImplem} />);
+        const input = screen.getByRole('textbox') as HTMLElement;
+        for (const event of buildAutocompleteEvents(input, queries)) {
+          await event.builder();
+        } // All the user's inputs have been fired onto the AutocompleField
+
+        // Assert
+        let suggestions: string[] = [];
+        while (s.count() !== 0) {
+          // Resolving one async query in a random order
+          await s.waitOne();
+
+          // Read suggestions shown by the component
+          const prevSuggestions = suggestions;
+          suggestions = (screen.queryAllByRole('listitem') as HTMLElement[]).map(getNodeText);
+
+          // We expect the number of suggestions to increase up to the final number
+          // of suggestions for <query> or 10 (max number of suggestions)
+          if (suggestions.length < prevSuggestions.length) {
+            const got = JSON.stringify({
+              prevSuggestions,
+              suggestions,
+            });
+            throw new Error(`We expect to have more and more suggestions as we resolve queries, got: ${got}`);
+          }
+        }
+        // At the end we expect to get results matching <query>
+        if (!suggestions.every((s) => s.startsWith(query))) {
+          throw new Error(`Must start with ${JSON.stringify(query)}, got: ${JSON.stringify(suggestions)}`);
+        }
+      }),
+      {
+        plugins: [
+          fc.beforeEach(async () => {
+            vi.resetAllMocks();
+            await cleanup();
+          }),
+        ],
+      },
+    );
+  });
+});
+
+// Helpers
+
+const AllResultsArbitrary = fc.uniqueArray(fc.string(), { maxLength: 1000 });
+const QueriesArbitrary = fc.array(fc.string(), { minLength: 1 });
+
+/**
+ * Generate a sequence of events that have to be fired onto the component
+ * in order to send it all the queries (characters are fired one by one)
+ */
+const buildAutocompleteEvents = (input: HTMLElement, queries: string[]) => {
+  const autocompleteEvents: Exclude<fc.SchedulerSequenceItem, () => any>[] = [];
+
+  for (const query of queries) {
+    for (let numCharacters = 0; numCharacters <= query.length; ++numCharacters) {
+      const subQuery = query.substring(0, numCharacters);
+      const builder = async () => {
+        await act(async () => {
+          fireEvent.change(input, { target: { value: subQuery } });
+        });
+      };
+      const label = `typing(${JSON.stringify(subQuery)})`;
+      autocompleteEvents.push({ builder, label });
+    }
+  }
+
+  return autocompleteEvents;
+};

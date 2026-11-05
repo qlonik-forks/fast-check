@@ -1,0 +1,55 @@
+const SMap = Map;
+const safeMapGet = Map.prototype.get;
+const safeMapHas = Map.prototype.has;
+const safeMapEntries = Map.prototype.entries;
+const safeMapSet = Map.prototype.set;
+const safeObjectDefineProperty = Object.defineProperty;
+
+/** Alias for Map.prototype.get */
+export const GetSymbol: unique symbol = Symbol('safe.get');
+/** Alias for Map.prototype.has */
+export const HasSymbol: unique symbol = Symbol('safe.has');
+/** Alias for Map.prototype.entries */
+export const EntriesSymbol: unique symbol = Symbol('safe.entries');
+/** Alias for Map.prototype.set */
+export const SetSymbol: unique symbol = Symbol('safe.set');
+
+/** Map instance enriched with aliased methods that cannot be poisoned */
+export type PoisoningFreeMap<K, V> = Map<K, V> & {
+  [GetSymbol]: (key: K) => V | undefined;
+  [HasSymbol]: (key: K) => boolean;
+  [EntriesSymbol]: () => IterableIterator<[K, V]>;
+  [SetSymbol]: (key: K, value: V) => Map<K, V>;
+};
+
+/** Factory responsible to build instances of PoisoningFreeMap */
+export function toPoisoningFreeMap<K, V>(
+  ins?: readonly (readonly [K, V])[] | Iterable<readonly [K, V]> | null,
+): PoisoningFreeMap<K, V> {
+  const instance = new SMap(ins);
+  safeObjectDefineProperty(instance, GetSymbol, {
+    value: safeMapGet,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+  safeObjectDefineProperty(instance, HasSymbol, {
+    value: safeMapHas,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+  safeObjectDefineProperty(instance, EntriesSymbol, {
+    value: safeMapEntries,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+  safeObjectDefineProperty(instance, SetSymbol, {
+    value: safeMapSet,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+  return instance as PoisoningFreeMap<K, V>;
+}

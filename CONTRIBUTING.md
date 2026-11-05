@@ -8,6 +8,23 @@ Use your best judgment, and feel free to propose changes to this document in a p
 
 **Feel free to contribute, ask questions, report bugs and issue pull requests**
 
+## Table of Contents
+
+- [How Can I Contribute?](#how-can-i-contribute)
+  - [Asking questions](#asking-questions)
+  - [Reporting bugs](#reporting-bugs)
+  - [Issuing pull requests](#issuing-pull-requests)
+    - [Getting started](#getting-started)
+    - [Code style](#code-style)
+    - [GitHub Actions integration](#github-actions-integration)
+    - [Notify how impactful your change will be](#notify-how-impactful-your-change-will-be)
+    - [Naming your pull request](#naming-your-pull-request)
+    - [Update your PR](#update-your-pr)
+    - [Resync PR with main](#resync-pr-with-main)
+  - [Examples](#examples)
+    - [Adding a new arbitrary](#adding-a-new-arbitrary)
+- [Can I use AI?](#can-i-use-ai)
+
 ## How Can I Contribute?
 
 ### Asking questions
@@ -15,7 +32,7 @@ Use your best judgment, and feel free to propose changes to this document in a p
 Before asking questions, please double-check you can not find your answer in one of the examples provided or in the documentation of the project:
 
 - [Documentation](https://github.com/dubzzz/fast-check/blob/main/README.md)
-- [Examples provided inside the project](https://github.com/dubzzz/fast-check/tree/main/example)
+- [Examples provided inside the project](https://github.com/dubzzz/fast-check/tree/main/examples)
 - [Examples of properties](https://github.com/dubzzz/fast-check-examples)
 - [Example: fuzzing a REST API](https://github.com/dubzzz/fuzz-rest-api)
 
@@ -33,30 +50,94 @@ In order to start playing with the code locally you must run the following set o
 
 ```bash
 git clone https://github.com/dubzzz/fast-check.git && cd fast-check
-yarn
-yarn prebuild #generate missing implementations: tuple and properties
-yarn build    #compile the code in ./src, build the ./lib content
+pnpm install
+pnpm --filter fast-check build    #compile the code in packages/fast-check/src, build the packages/fast-check/lib content
 ```
 
 Once done, everything is ready for you to start working on the code.
 
+Alternatively, open the repository in GitHub Codespaces.
+
 #### Code style
 
-Code style standard is enforced by Prettier.
-Once done with your development you can check it follow the recommended code style by running `yarn format:check` or run autofixes with `yarn format`.
+Code style standard is enforced by Oxfmt.
+Once done with your development you can check it follow the recommended code style by running `pnpm format:check` or run autofixes with `pnpm format`.
 
-You should also check for linting by running `yarn lint:check` and fix lint problems with `yarn lint`.
+You should also check for linting by running `pnpm lint:check` and fix lint problems with `pnpm lint`.
 
-#### Travis CI integration
+#### GitHub Actions integration
 
-All pull requests will trigger Travis CI builds.
+All pull requests will trigger GitHub Actions checks.
 It ensures that the pull request follow the code style of the project and do not break existing tests.
+
+When adding or changing GitHub Actions dependencies, regenerate the workflow lockfile with the
+[`gh-actions-lock` extension](https://github.com/github/gh-actions-lock):
+
+```bash
+gh extension install github/gh-actions-lock --pin v0.4.0
+gh actions-lock --no-narrow
+gh actions-lock --verify
+```
+
+Keep `--no-narrow` when generating the lockfile to preserve the workflows' existing commit SHA pins.
+Do not edit `.github/workflows/actions.lock` by hand. Renovate updates it when updating actions,
+and the Verify GitHub Actions lockfile workflow verifies it when workflow definitions, local actions,
+or the lockfile change.
+
+#### Notify how impactful your change will be
+
+Any change in the code may have impact in the next release. In order to ease our deployment process we try to anticipate as much as possible the impacts of each single pull request from a semver point of view:
+
+- decline: really no impact code side from a bundle point of view
+- patch: no visible impact, generally mostly fixing bugs or typos in the code
+- minor: new features
+- major: breaking changes
+
+In order to ease this work, before opening the PR (or after if you forgot to do it), you should run the script `pnpm -w run bump` to underline which packages have been impacted. Please note that our internals and private packages must always be toggled to 'decline' as we don't plan to bump their versions.
+
+#### Naming your pull request
+
+We follow the [gitmoji](https://gitmoji.dev/) specification for PR titles. Each PR title must start with a gitmoji that describes the nature of the change. Here are some commonly used ones:
+
+| Gitmoji | Code                    | Description          |
+| ------- | ----------------------- | -------------------- |
+| ✨      | `:sparkles:`            | New feature          |
+| 🐛      | `:bug:`                 | Bug fix              |
+| 📝      | `:memo:`                | Documentation        |
+| ✅      | `:white_check_mark:`    | Tests                |
+| 🏷️      | `:label:`               | Types                |
+| ⚡️      | `:zap:`                 | Performance          |
+| ♻️      | `:recycle:`             | Refactoring          |
+| 🔧      | `:wrench:`              | Configuration        |
+| 🎨      | `:art:`                 | Code style/format    |
+| 🔥      | `:fire:`                | Remove code/files    |
+| ⬆️      | `:arrow_up:`            | Upgrade dependencies |
+| 🗑️      | `:wastebasket:`         | Deprecation          |
+| 👷      | `:construction_worker:` | CI                   |
+
+For the full list, see [gitmoji.dev](https://gitmoji.dev/).
+
+When the change targets a package **other than `fast-check`**, add the package scope in parentheses after the emoji. The available scopes correspond to the package directory names:
+
+- `ava` — for `@fast-check/ava`
+- `jest` — for `@fast-check/jest`
+- `vitest` — for `@fast-check/vitest`
+- `worker` — for `@fast-check/worker`
+- `poisoning` — for `@fast-check/poisoning`
+- `packaged` — for `@fast-check/packaged`
+
+**Examples:**
+
+- `✨ Add new arbitrary for dates` — a feature in the main `fast-check` package (no scope needed)
+- `🐛(vitest) Fix compatibility with vitest 4` — a bug fix in `@fast-check/vitest`
+- `📝(jest) Improve usage examples` — documentation update for `@fast-check/jest`
 
 #### Update your PR
 
 If you plan to update your PR with either a fix for the tests or change following code reviews please directly commit your new commit in your branch, PR will get updated automatically.
 
 Before your fix:
+
 ```
 --*---> main    on dubzzz/fast-check
    \
@@ -64,6 +145,7 @@ Before your fix:
 ```
 
 After your fix:
+
 ```
 --*--->        main    on dubzzz/fast-check
    \
@@ -78,24 +160,24 @@ Ideally to resync your branch with main prefer a merge of main branch into your 
 
 #### Adding a new arbitrary
 
-✔️ *Create a feature request*
+✔️ _Create a feature request_
 
 Before adding any new arbitrary into fast-check please make sure to fill a `Feature request` to justify the need for such arbitrary.
 
-✔️ *Code the arbitrary*
+✔️ _Code the arbitrary_
 
 All the arbitraries defined by fast-check are available in `src/arbitrary`.
 Create a new file for the new one if it does not fit into the existing ones.
 
-✔️ *Test the arbitrary*
+✔️ _Test the arbitrary_
 
 Most of the newly added arbitraries will just be a combination of existing ones (mostly mapping from one entry to another).
 We expect a quite minimal amount of tests to be added as most of the logic depends on the built-in blocks.
 
-- *Unit-test* &amp; *Integration* - in `test/unit/arbitrary`
+- _Unit-test_ &amp; _Integration_ - in `test/unit/arbitrary`
 
 ```js
-import * as fc from '../../../lib/fast-check';
+import * as fc from 'fast-check';
 import { myArbitrary } from '../../../../src/arbitrary/MyArbitrary';
 import {
   assertProduceCorrectValues,
@@ -124,55 +206,59 @@ describe('myArbitrary (integration)', () => {
 
   const isCorrect = (value: /* Type of the value */, extra: Extra) => {
     // Returns true if the value is correct given extra
-    // Returs false or throws (possibly via expect) if value is invalid
+    // Returns false or throws (possibly via expect) if value is invalid
   };
 
   const isStrictlySmaller = (vNew: /* Type of the value */, vOld: /* Type of the value */, extra: Extra) => {
     // Returns true if the vNew is really strictly smaller than vOld
-    // Returs false or throws (possibly via expect) otherwise
+    // Returns false or throws (possibly via expect) otherwise
   };
 
   const myArbitraryBuilder = (extra: Extra) => convertToNext(myArbitrary(extra));
 
-  it('should produce the same values given the same seed', () => {
-    assertProduceSameValueGivenSameSeed(myArbitraryBuilder, { extraParameters });
+  it('should produce the same values given the same seed', async () => {
+    await assertProduceSameValueGivenSameSeed(myArbitraryBuilder, { extraParameters });
   });
 
-  it('should only produce correct values', () => {
-    assertProduceCorrectValues(myArbitraryBuilder, isCorrect, { extraParameters });
-  });
-
-  // OPTIONAL STEP
-  it('should produce values seen as shrinkable without any context', () => {
-    assertProduceValuesShrinkableWithoutContext(myArbitraryBuilder, { extraParameters });
+  it('should only produce correct values', async () => {
+    await assertProduceCorrectValues(myArbitraryBuilder, isCorrect, { extraParameters });
   });
 
   // OPTIONAL STEP
-  it('should be able to shrink to the same values without initial context', () => {
-    assertShrinkProducesSameValueWithoutInitialContext(myArbitraryBuilder, { extraParameters });
+  it('should produce values seen as shrinkable without any context', async () => {
+    await assertProduceValuesShrinkableWithoutContext(myArbitraryBuilder, { extraParameters });
   });
 
   // OPTIONAL STEP
-  it('should preserve strictly smaller ordering in shrink', () => {
-    assertShrinkProducesStrictlySmallerValue(myArbitraryBuilder, isStrictlySmaller, { extraParameters });
+  it('should be able to shrink to the same values without initial context', async () => {
+    await assertShrinkProducesSameValueWithoutInitialContext(myArbitraryBuilder, { extraParameters });
+  });
+
+  // OPTIONAL STEP
+  it('should preserve strictly smaller ordering in shrink', async () => {
+    await assertShrinkProducesStrictlySmallerValue(myArbitraryBuilder, isStrictlySmaller, { extraParameters });
   });
 });
 ```
 
-- No regression test - in `test/e2e/NoRegression.spec.ts`
+- No regression test - in `test/NoRegression.spec.ts`
 
-Then run `yarn e2e -- -u` locally to update the snapshot file. The `NoRegression` spec is supposed to prevent unwanted breaking changes to be included in a future release of fast-check by taking a snapshot of the current output and enforcing it does not change over time (except if needed).
+Then run `pnpm test NoRegression --u` locally to update the snapshot file. The `NoRegression` spec is supposed to prevent unwanted breaking changes to be included in a future release of fast-check by taking a snapshot of the current output and enforcing it does not change over time (except if needed).
 
-- Legacy support test - in `test/legacy/main.js`
+- Legacy support test - in `packages/test-minimal-support/main.js`
 
-The `legacy` spec is responsible to check that most of the arbitraries provided by fast-check are working fine on very old releases of node.
+The spec is responsible to check that most of the arbitraries provided by fast-check are working fine on rather old releases of node.
 
-- Typing test - in `test/type/main.ts`
+- Typing test - in `packages/test-types/main.ts`
 
-The `type` spec is responsible to check that the typings are correct but they also ensure that they will not break with future changes or upcoming releases of TypeScript.
+The spec is responsible to check that the typings are correct. It also ensures that they will not break with future changes or upcoming releases of TypeScript.
 
-✔️ *Document the arbitrary*
+✔️ _Document the arbitrary_
 
 - Provide a minimal JSDoc on top of your new arbitrary and use the `/** @internal */` tag to hide internals - otherwise they would get published into the generated documentation
 
-- Add the arbitrary into the list of Built-in Arbitraries - see https://github.com/dubzzz/fast-check/blob/main/documentation/Arbitraries.md
+- Add the arbitrary into the list of Built-in Arbitraries - see https://fast-check.dev/docs/core-blocks/arbitraries/
+
+## Can I use AI?
+
+Please read our [AI Policy](./AI_POLICY.md) before submitting code generated with AI tools.

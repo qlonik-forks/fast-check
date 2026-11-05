@@ -1,0 +1,72 @@
+{
+  "name": "fast-check",
+  "version": "4.10.2",
+  "description": "Property based testing framework for JavaScript (like QuickCheck)",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./lib/fast-check.js"
+  },
+  "files": [
+    "lib"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "rolldown -c",
+    "build-ci": "rolldown -c",
+    "typecheck": "tsc --noEmit",
+    "test-bundle": "for f in test-bundle/*.mjs test-bundle/*.cjs; do [ -f \"$f\" ] && echo \"Running ${f##*/}\" && node \"$f\" || exit 1; done",
+    "test-legacy-bundle": "nvs add 22.12.0 && for f in test-bundle/*.cjs; do [ -f \"$f\" ] && echo \"Running ${f##*/}\" && $(nvs which 22.12.0) \"$f\" || exit 1; done",
+    "api-extractor": "api-extractor run --local"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dubzzz/fast-check.git",
+    "directory": "packages/fast-check"
+  },
+  "author": "Nicolas DUBIEN <github@dubien.org>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dubzzz/fast-check/issues"
+  },
+  "homepage": "https://fast-check.dev/",
+  "engines": {
+    "node": ">=12.17.0"
+  },
+  "dependencies": {
+    "pure-rand": "^8.0.0"
+  },
+  "devDependencies": {
+    "@fast-check/poisoning": "workspace:*",
+    "@microsoft/api-extractor": "^7.60.1",
+    "@types/node": "^26.6.6",
+    "fast-check": "workspace:*",
+    "not-node-buffer": "npm:buffer@^6.0.3",
+    "regexp-tree": "^0.1.27",
+    "typescript": "~7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "keywords": [
+    "property-based testing",
+    "end-to-end testing",
+    "unit testing",
+    "testing",
+    "quickcheck",
+    "faker",
+    "fuzzer",
+    "fuzz",
+    "jest",
+    "vitest",
+    "random"
+  ],
+  "funding": [
+    {
+      "type": "individual",
+      "url": "https://github.com/sponsors/dubzzz"
+    },
+    {
+      "type": "opencollective",
+      "url": "https://opencollective.com/fast-check"
+    }
+  ]
+}

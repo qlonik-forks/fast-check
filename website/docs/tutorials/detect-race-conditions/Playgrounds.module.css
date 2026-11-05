@@ -1,0 +1,22 @@
+.playgroundActions {
+  display: flex;
+  gap: 0.5em;
+  padding: 0.5em;
+  color: #282c34;
+  border-radius: 0 0 0.5em 0.5em;
+  margin-bottom: 1em;
+}
+
+.playgroundActions button {
+  background-color: #282c34;
+  color: #ffffff;
+  border: none;
+  border-radius: 0.25em;
+  padding: 0.4em 0.8em;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.playgroundActions button:hover {
+  background-color: #3a3f4b;
+}

@@ -1,0 +1,22 @@
+import { vi } from 'vitest';
+import { nil } from '../../../utils/iterator.js';
+import type { MockInstance } from 'vitest';
+import type { Property } from '../types/Property.js';
+import { Value } from '../../arbitrary/definition/Value.js';
+
+/**
+ * Generate a fake instance inheriting from IProperty with all methods being mocked
+ */
+export function fakeProperty<T = unknown>(): { instance: Property<T> } & {
+  [K in keyof Property<T>]: MockInstance<Property<T>[K]>;
+} {
+  const generate = vi.fn<Property<T>['generate']>(() => new Value(Symbol() as unknown as T, undefined));
+  const shrink = vi.fn<Property<T>['shrink']>(() => nil);
+  const run = vi.fn<Property<T>['run']>(() => null);
+  class MyProperty implements Property<unknown> {
+    generate = generate;
+    shrink = shrink;
+    run = run;
+  }
+  return { instance: new MyProperty(), generate, shrink, run };
+}

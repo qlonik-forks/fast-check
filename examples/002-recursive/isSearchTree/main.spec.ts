@@ -1,0 +1,63 @@
+import { describe, it } from 'vitest';
+import * as fc from 'fast-check';
+import _ from 'lodash';
+import { binarySearchTreeWithMaxDepth } from './arbitraries/BinarySearchTreeArbitrary.js';
+import { isSearchTree, Tree } from './src/isSearchTree.js';
+import { binaryTreeWithMaxDepth, binaryTreeWithoutMaxDepth } from './arbitraries/BinaryTreeArbitrary.js';
+
+describe('isSearchTree', () => {
+  it('should accept valid binary search trees', async () => {
+    await fc.assert(
+      fc.property(binarySearchTreeWithMaxDepth(3), (tree) => {
+        return isSearchTree(tree);
+      }),
+    );
+  });
+
+  it('should reject trees with unordered in-order traversal', async () => {
+    await fc.assert(
+      fc.property(binaryTreeWithMaxDepth(3), (tree) => {
+        fc.pre(!isSorted(traversal(tree, (t) => t.value)));
+        return !isSearchTree(tree);
+      }),
+    );
+  });
+
+  it('should reject trees with unordered in-order traversal (depthSize)', async () => {
+    await fc.assert(
+      fc.property(binaryTreeWithoutMaxDepth(), (tree) => {
+        fc.pre(!isSorted(traversal(tree, (t) => t.value)));
+        return !isSearchTree(tree);
+      }),
+    );
+  });
+
+  it('should reject trees where a child violates the BST ordering', async () => {
+    await fc.assert(
+      fc.property(binaryTreeWithMaxDepth(3), (tree) => {
+        fc.pre(
+          traversal(tree, (t) => t).some(
+            (t) => (t.left && t.left.value > t.value) || (t.right && t.right.value <= t.value),
+          ),
+        );
+        return !isSearchTree(tree);
+      }),
+    );
+  });
+});
+
+// Helpers
+
+function traversal<TOut>(t: Tree<number>, extract: (node: Tree<number>) => TOut, out: TOut[] = []): TOut[] {
+  if (t.left) traversal(t.left, extract, out);
+  out.push(extract(t));
+  if (t.right) traversal(t.right, extract, out);
+  return out;
+}
+
+function isSorted(d: number[]): boolean {
+  return _.isEqual(
+    d,
+    [...d].sort((a, b) => a - b),
+  );
+}

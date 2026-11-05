@@ -1,0 +1,33 @@
+packages:
+  - examples
+  - packages/*
+  - website
+
+overrides:
+  tmp@<0.2.4: ~0.2.4
+  serialize-javascript@<7.0.5: ~7.0.5
+  'typedoc@0.28.20>typescript@<6': '-'
+
+packageExtensions:
+  'typedoc@0.28.20':
+    dependencies:
+      typescript: '^6.0.3'
+
+allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': false
+  core-js: false
+  core-js-pure: false
+  es5-ext: false
+  esbuild: false
+  unrs-resolver: false
+
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 20160
+
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+
+blockExoticSubdeps: true
+
+linkWorkspacePackages: deep

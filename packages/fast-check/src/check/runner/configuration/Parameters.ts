@@ -1,0 +1,124 @@
+import type { VerbosityLevel } from './VerbosityLevel.js';
+import type { RandomGenerator } from '../../../random/generator/RandomGenerator.js';
+import type { Plugin } from '../../plugin/Plugin.js';
+
+/**
+ * Customization of the parameters used to run the properties
+ * @remarks Since 0.0.7
+ * @public
+ */
+export interface Parameters<T = void> {
+  /**
+   * Initial seed of the generator: `Date.now()` by default
+   *
+   * It can be forced to replay a failed run.
+   *
+   * In theory, seeds are supposed to be 32-bit integers.
+   * In case of double value, the seed will be rescaled into a valid 32-bit integer (eg.: values between 0 and 1 will be evenly spread into the range of possible seeds).
+   *
+   * @remarks Since 0.0.1
+   */
+  seed?: number;
+  /**
+   * Random number generator: `xorshift128plus` by default
+   *
+   * Random generator is the core element behind the generation of random values - changing it might directly impact the quality and performances of the generation of random values.
+   * It can be any function able to build a `RandomGenerator` based on a seed.
+   *
+   * As required since pure-rand v6.0.0, the random number generator must generate values between -0x80000000 and 0x7fffffff.
+   *
+   * @remarks Since 1.6.0
+   */
+  randomType?: (seed: number) => RandomGenerator;
+  /**
+   * Number of runs before success: 100 by default
+   * @remarks Since 1.0.0
+   */
+  numRuns?: number;
+  /**
+   * Maximal number of skipped values per run
+   *
+   * Skipped is considered globally, so this value is used to compute maxSkips = maxSkipsPerRun * numRuns.
+   * Runner will consider a run to have failed if it skipped maxSkips+1 times before having generated numRuns valid entries.
+   *
+   * See {@link pre} for more details on pre-conditions
+   *
+   * @remarks Since 1.3.0
+   */
+  maxSkipsPerRun?: number;
+  /**
+   * Way to replay a failing property directly with the counterexample.
+   * It can be fed with the counterexamplePath returned by the failing test (requires `seed` too).
+   * @remarks Since 1.0.0
+   */
+  path?: string;
+  /**
+   * Logger (see {@link statistics}): `console.log` by default
+   * @remarks Since 0.0.6
+   */
+  logger?(v: string): void;
+  /**
+   * Enable verbose mode: {@link VerbosityLevel.None} by default
+   *
+   * Using `verbose: true` is equivalent to `verbose: VerbosityLevel.Verbose`
+   *
+   * It can prove very useful to troubleshoot issues.
+   * See {@link VerbosityLevel} for more details on each level.
+   *
+   * @remarks Since 1.1.0
+   */
+  verbose?: boolean | VerbosityLevel;
+  /**
+   * Custom values added at the beginning of generated ones
+   *
+   * It enables users to come with examples they want to test at every run
+   *
+   * @remarks Since 1.4.0
+   */
+  examples?: T[];
+  /**
+   * Stop run on failure
+   *
+   * It makes the run stop at the first encountered failure without shrinking.
+   *
+   * When used in complement to `seed` and `path`,
+   * it replays only the minimal counterexample.
+   *
+   * @remarks Since 1.11.0
+   */
+  endOnFailure?: boolean;
+  /**
+   * Disable the default plugins: `false` by default
+   *
+   * When set to `true`, {@link assert} skips default failure reporting.
+   * Plugins passed through `plugins` or installed globally via
+   * {@link installGlobalPlugin} are still executed and may throw, unless
+   * globally installed plugins are disabled with `noGlobalPlugins`.
+   *
+   * @remarks Since 5.0.0
+   */
+  noDefaultPlugins?: boolean;
+  /**
+   * Disable globally installed plugins: `false` by default
+   *
+   * When set to `true`, plugins installed via {@link installGlobalPlugin}
+   * are not instantiated for this run. Plugins passed through `plugins` and
+   * default plugins are unaffected. Use `noDefaultPlugins` to disable defaults.
+   *
+   * @remarks Since 5.0.0
+   */
+  noGlobalPlugins?: boolean;
+  /**
+   * Set of plugins extending the way the property gets executed by the runner
+   *
+   * Each plugin is instantiated once per run.
+   * They can be leveraged to control and enrich the execution flow of each predicate.
+   *
+   * They come after the plugins installed globally via {@link installGlobalPlugin} and before the default ones.
+   * At execution time, the first plugin of the resulting array is entered first while the last one is the closest to the predicate.
+   * Plugins are instantiated in order.
+   *
+   * @remarks Since 4.10.0
+   */
+  plugins?: Plugin<T>[];
+}

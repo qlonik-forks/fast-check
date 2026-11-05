@@ -1,0 +1,33 @@
+export function natToStringifiedNatMapper(options: ['dec' | 'oct' | 'hex', number]): string {
+  const [style, v] = options;
+  switch (style) {
+    case 'oct':
+      return `0${v.toString(8)}`;
+    case 'hex':
+      return `0x${v.toString(16)}`;
+    case 'dec':
+    default:
+      return `${v}`;
+  }
+}
+
+export function tryParseStringifiedNat(stringValue: string, radix: number): number {
+  const parsedNat = Number.parseInt(stringValue, radix);
+  if (parsedNat.toString(radix) !== stringValue) {
+    throw new Error('Invalid value');
+  }
+  return parsedNat;
+}
+
+export function natToStringifiedNatUnmapper(value: unknown): ['dec' | 'oct' | 'hex', number] {
+  if (typeof value !== 'string') {
+    throw new Error('Invalid type');
+  }
+  if (value.length >= 2 && value[0] === '0') {
+    if (value[1] === 'x') {
+      return ['hex', tryParseStringifiedNat(value.substring(2), 16)];
+    }
+    return ['oct', tryParseStringifiedNat(value.substring(1), 8)];
+  }
+  return ['dec', tryParseStringifiedNat(value, 10)];
+}
